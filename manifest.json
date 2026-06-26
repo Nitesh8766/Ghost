@@ -1,0 +1,8 @@
+{
+  "name": "Offline Ghost",
+  "short_name": "GhostLayer",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#e50914"
+}

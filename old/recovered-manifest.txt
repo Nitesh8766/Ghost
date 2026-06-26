@@ -1,0 +1,8 @@
+Recovered Manifest
+
+cache: ghostlayer-v1-old
+database: ghostVault
+object store: secrets
+record id: final-vault
+
+If you found this file, you are looking in the correct place.

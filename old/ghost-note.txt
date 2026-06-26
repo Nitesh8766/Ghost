@@ -1,0 +1,16 @@
+GhostLayer Archive Note
+
+The vault key was never stored online.
+Find the city, date, and codename from the last GhostLayer sighting.
+
+Password format:
+city-date-codename
+
+Example format:
+mumbai-01january-raven
+
+The encrypted vault does not live in a file.
+It lives where the browser stores application data.
+
+When you recover the vault record, use:
+tools/decrypt_vault.html

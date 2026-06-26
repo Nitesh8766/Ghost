@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Offline Ghost Strict Decryptor</title>
+<style>
+:root{--bg:#050505;--panel:#111;--text:#f5f5f5;--muted:#b8b8b8;--red:#e50914;--line:#2b2b2b}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;padding:24px;background:radial-gradient(circle at 15% 10%,rgba(229,9,20,.18),transparent 35%),var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.box{width:min(900px,100%);margin:auto;background:linear-gradient(135deg,rgba(17,17,17,.98),rgba(5,5,5,.98));border:1px solid var(--line);border-radius:22px;padding:30px;box-shadow:0 0 48px rgba(229,9,20,.16)}
+.tag{color:var(--red);font-weight:800;letter-spacing:.3em;font-size:12px;margin-bottom:14px}
+h1{margin:0 0 16px;font-size:clamp(32px,6vw,56px);line-height:.9;text-transform:uppercase;letter-spacing:-.05em}
+p{color:var(--muted);line-height:1.6}
+input,textarea{width:100%;padding:14px;background:#050505;border:1px solid #333;color:white;border-radius:12px;font-size:15px;outline:none}
+textarea{min-height:260px;font-family:ui-monospace,Menlo,Consolas,monospace}
+input:focus,textarea:focus{border-color:var(--red)}
+button{margin-top:14px;padding:14px 18px;background:var(--red);color:white;border:0;border-radius:12px;font-weight:800;cursor:pointer}
+pre{white-space:pre-wrap;word-break:break-word;margin-top:18px;padding:18px;background:#050505;border:1px solid #333;border-left:4px solid var(--red);border-radius:12px;min-height:90px;color:#f5f5f5}
+code{background:#050505;border:1px solid #333;padding:2px 6px;border-radius:6px;color:#fff}
+</style>
+</head>
+<body>
+<main class="box">
+  <div class="tag">GHOSTLAYER VAULT</div>
+  <h1>Strict Vault Decryptor</h1>
+  <p>
+    Paste the complete <code>final-vault</code> JSON from
+    <code>IndexedDB → ghostVault → secrets → final-vault</code>, then enter the OSINT password.
+  </p>
+  <textarea id="vault" placeholder='Paste full final-vault JSON here'></textarea>
+  <br><br>
+  <input id="password" placeholder="Enter vault password" autocomplete="off">
+  <button id="unlock">Unlock Vault</button>
+  <pre id="output">Waiting for vault JSON and password...</pre>
+</main>
+
+<script>
+function b64ToBytes(b64){
+  const binary=atob(b64);
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+  return bytes;
+}
+function bytesToText(bytes){return new TextDecoder().decode(bytes);}
+
+async function decryptVault(vault,password){
+  const enc=new TextEncoder();
+  const baseKey=await crypto.subtle.importKey("raw",enc.encode(password),"PBKDF2",false,["deriveKey"]);
+  const key=await crypto.subtle.deriveKey(
+    {name:"PBKDF2",salt:b64ToBytes(vault.salt),iterations:Number(vault.iterations),hash:"SHA-256"},
+    baseKey,
+    {name:"AES-GCM",length:256},
+    false,
+    ["decrypt"]
+  );
+  const plaintext=await crypto.subtle.decrypt(
+    {name:"AES-GCM",iv:b64ToBytes(vault.iv)},
+    key,
+    b64ToBytes(vault.ciphertext)
+  );
+  return bytesToText(new Uint8Array(plaintext));
+}
+
+document.getElementById("unlock").addEventListener("click",async()=>{
+  const output=document.getElementById("output");
+  const raw=document.getElementById("vault").value.trim();
+  const password=document.getElementById("password").value.trim();
+  if(!raw || !password){output.textContent="Paste vault JSON and enter password first.";return;}
+  let vault;
+  try{vault=JSON.parse(raw);}catch(e){output.textContent="Invalid JSON. Copy the complete final-vault object.";return;}
+  for(const k of ["salt","iv","ciphertext","iterations"]){
+    if(!(k in vault)){output.textContent="Missing field in vault JSON: "+k;return;}
+  }
+  output.textContent="Trying to unlock vault...";
+  try{
+    const result=await decryptVault(vault,password);
+    output.textContent="[+] Vault unlocked:\n"+result;
+  }catch(e){
+    output.textContent="[-] Wrong password or corrupted vault JSON.";
+  }
+});
+</script>
+</body>
+</html>
